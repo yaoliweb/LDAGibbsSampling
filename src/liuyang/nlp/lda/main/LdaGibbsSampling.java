@@ -71,24 +71,37 @@ public class LdaGibbsSampling {
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws IOException {
-		// TODO Auto-generated method stub
+		//文档路径
 		String originalDocsPath = PathConfig.ldaDocsPath;
+		//结果集
 		String resultPath = PathConfig.LdaResultsPath;
+		//Lda参数
 		String parameterFile= ConstantConfig.LDAPARAMETERFILE;
-		
+
+		//模型参数,如果文件中没有设定,那么就选择程序中设定的参数
 		modelparameters ldaparameters = new modelparameters();
+
+
 		getParametersFromFile(ldaparameters, parameterFile);
+
+		//文档集合
 		Documents docSet = new Documents();
-		docSet.readDocs(originalDocsPath);
+		docSet.readDocs(originalDocsPath);//文档路径
+
 		System.out.println("wordMap size " + docSet.termToIndexMap.size());
-		FileUtil.mkdir(new File(resultPath));
-		LdaModel model = new LdaModel(ldaparameters);
+
+		FileUtil.mkdir(new File(resultPath));//产生 文件
+
+		LdaModel model = new LdaModel(ldaparameters); //参数
 		System.out.println("1 Initialize the model ...");
-		model.initializeModel(docSet);
+		model.initializeModel(docSet);//初始化 模型
+
 		System.out.println("2 Learning and Saving the model ...");
-		model.inferenceModel(docSet);
+		model.inferenceModel(docSet);//推理 模型
+
 		System.out.println("3 Output the final model ...");
-		model.saveIteratedModel(ldaparameters.iteration, docSet);
+		model.saveIteratedModel(ldaparameters.iteration, docSet);//迭代次数，
+
 		System.out.println("Done!");
 	}
 }

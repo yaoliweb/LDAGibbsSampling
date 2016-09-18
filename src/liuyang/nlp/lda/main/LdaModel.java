@@ -23,8 +23,8 @@ public class LdaModel {
 	int [][] z;//topic label array
 	float alpha; //doc-topic dirichlet prior parameter 
 	float beta; //topic-word dirichlet prior parameter
-	int [][] nmk;//given document m, count times of topic k. M*K
-	int [][] nkt;//given topic k, count times of term t. K*V
+	int [][] nmk;//given document m, count times of topic k. M*K，每篇文章的主题数量
+	int [][] nkt;//given topic k, count times of term t. K*V，主题，单词t的计数
 	int [] nmkSum;//Sum for each row in nmk
 	int [] nktSum;//Sum for each row in nkt
 	double [][] phi;//Parameters for topic-word distribution K*V
@@ -44,43 +44,52 @@ public class LdaModel {
 	}
 
 	public void initializeModel(Documents docSet) {
-		// TODO Auto-generated method stub
-		M = docSet.docs.size();
-		V = docSet.termToIndexMap.size();
-		nmk = new int [M][K];
-		nkt = new int[K][V];
-		nmkSum = new int[M];
-		nktSum = new int[K];
-		phi = new double[K][V];
-		theta = new double[M][K];
+		M = docSet.docs.size();//所有文档的数量
+		V = docSet.termToIndexMap.size();//所有单词的数量
+		nmk = new int [M][K];//文档的数量：行数；主题：列数
+		nkt = new int[K][V];//文档的主题：行数；所有文档的单词：列数
+		nmkSum = new int[M];//文档的数量
+		nktSum = new int[K];//文档主题的数量
+		phi = new double[K][V];//主题 行数；单词：列数
+		theta = new double[M][K];//文档 行数；主题：列数
 		
 		//initialize documents index array
-		doc = new int[M][];
+		//初始化文章 索引数组
+		doc = new int[M][];	//行数
 		for(int m = 0; m < M; m++){
 			//Notice the limit of memory
-			int N = docSet.docs.get(m).docWords.length;
-			doc[m] = new int[N];
-			for(int n = 0; n < N; n++){
-				doc[m][n] = docSet.docs.get(m).docWords[n];
+			//注意内存的限制
+			int N = docSet.docs.get(m).docWords.length;//获取 m片文章下 单词的数量，即长度。
+			doc[m] = new int[N]; //列数 是 每个文档的 所有单词的数量，每列可能不同
+			for(int n = 0; n < N; n++){ //遍历第m篇文章下面所有的单词
+				doc[m][n] = docSet.docs.get(m).docWords[n];// 是第n个单词的索引
 			}
 		}
 		
 		//initialize topic lable z for each word
+		//对每个 单词初始 主题标签 z
 		z = new int[M][];
 		for(int m = 0; m < M; m++){
-			int N = docSet.docs.get(m).docWords.length;
+			int N = docSet.docs.get(m).docWords.length; //获取该篇文档下所有单词的数量
 			z[m] = new int[N];
 			for(int n = 0; n < N; n++){
 				int initTopic = (int)(Math.random() * K);// From 0 to K - 1
-				z[m][n] = initTopic;
+				z[m][n] = initTopic;//第m篇文章的每个单词 进行主题初始化，每个单词 都会随机生成一个对应的主题
 				//number of words in doc m assigned to topic initTopic add 1
-				nmk[m][initTopic]++;
+				nmk[m][initTopic]++;//该篇文章的主题数量加 1
+
+
 				//number of terms doc[m][n] assigned to topic initTopic add 1
+				//主题，第n个索引
+				// nkt的列数是所有单词，这样就可以获得第m片文章的第n个单词的索引在 nkt中第 initopic个主题个数
 				nkt[initTopic][doc[m][n]]++;
+
 				// total number of words assigned to topic initTopic add 1
+				// 随机生成的这个主题数目加一
 				nktSum[initTopic]++;
 			}
 			 // total number of words in document m is N
+			// 第m篇文档的单词数量
 			nmkSum[m] = N;
 		}
 	}
@@ -93,6 +102,8 @@ public class LdaModel {
 		}
 		for(int i = 0; i < iterations; i++){
 			System.out.println("Iteration " + i);
+
+			//以下的循环适用于保存 迭代的参数
 			if((i >= beginSaveIters) && (((i - beginSaveIters) % saveStep) == 0)){
 				//Saving the model
 				System.out.println("Saving model at iteration " + i +" ... ");
@@ -103,11 +114,12 @@ public class LdaModel {
 			}
 			
 			//Use Gibbs Sampling to update z[][]
+			//使用Gibbs采样来更新z
 			for(int m = 0; m < M; m++){
-				int N = docSet.docs.get(m).docWords.length;
+				int N = docSet.docs.get(m).docWords.length;//获取第m篇文档的长度
 				for(int n = 0; n < N; n++){
 					// Sample from p(z_i|z_-i, w)
-					int newTopic = sampleTopicZ(m, n);
+					int newTopic = sampleTopicZ(m, n);//采样，参数是 m 篇 文档的 第 n 个单词
 					z[m][n] = newTopic;
 				}
 			}
@@ -129,18 +141,21 @@ public class LdaModel {
 		}
 	}
 
+	//使用吉布斯采样
 	private int sampleTopicZ(int m, int n) {
 		// TODO Auto-generated method stub
 		// Sample from p(z_i|z_-i, w) using Gibbs upde rule
-		
+		// 使用 gibbs 更新规则
+
 		//Remove topic label for w_{m,n}
+		//原来的 主题标签
 		int oldTopic = z[m][n];
-		nmk[m][oldTopic]--;
-		nkt[oldTopic][doc[m][n]]--;
+		nmk[m][oldTopic]--; //每篇的旧主题 数量减去 1
+		nkt[oldTopic][doc[m][n]]--; //
 		nmkSum[m]--;
 		nktSum[oldTopic]--;
 		
-		//Compute p(z_i = k|z_-i, w)
+		//计算 p(z_i = k|z_-i, w)
 		double [] p = new double[K];
 		for(int k = 0; k < K; k++){
 			p[k] = (nkt[k][doc[m][n]] + beta) / (nktSum[k] + V * beta) * (nmk[m][k] + alpha) / (nmkSum[m] + K * alpha);
@@ -160,6 +175,7 @@ public class LdaModel {
 		}
 		
 		//Add new topic label for w_{m, n}
+		//为词增加新的主题标签
 		nmk[m][newTopic]++;
 		nkt[newTopic][doc[m][n]]++;
 		nmkSum[m]++;
